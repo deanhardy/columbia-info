@@ -163,6 +163,6 @@ m
         
 ## export as interactive html map
 library(htmlwidgets)
-saveWidget(m, 
+saveWidget(m,
            file="/Users/dhardy/Dropbox/r_data/columbia-info/columbia.html",
            title = "Columbia, SC Information")
