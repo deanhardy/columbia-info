@@ -75,7 +75,7 @@ dem2 <- dem %>%
                 other, multiracial, latinx, propPOC, medhhinc, agghhinc, hu, ownocc) %>%
   mutate(pwhite = round(white/tot_pop, 2), pblack = round(black/tot_pop, 2), pother = round(other/tot_pop, 2), 
          platinx = round(latinx/tot_pop, 2), popden = round(tot_pop/ALAND, 2),
-         pland = round((ALAND * 0.000001)/sqkm_bg, 2)) %>%
+         pland = round((ALAND * 0.000001)/sqkm_bg, 2), pownocc = round(ownocc/hu, 2)) %>%
   st_transform(4326)
 
 ## import school locations
@@ -90,6 +90,15 @@ scl <- st_read(file.path(datadir, "schools/schools.shp")) %>%
 
 factpal <- colorFactor(rainbow(8), buf$id)
 bpal <- colorBin('Reds', dem2$medhhinc, 5, pretty = FALSE)
+bpal2 <- colorBin('Blues', dem2$pownocc, 5, pretty = FALSE)
+pops <- paste("People of Color (%):", round(100*dem2$propPOC, 0), "<br>",
+              "Black (%):", 100*dem2$pblack, "<br>",
+              "Other race (%):", 100*dem2$pother, "<br>",
+              "Latinx (%):", 100*dem2$platinx, "<br>",
+              "White (%):", 100*dem2$pwhite, "<br>",
+              "Median HH Income (US$):", round(dem2$medhhinc, 0), "<br>",
+              "Housing Units (#):", dem2$hu, "<br>",
+              "Owner-Occupied HU (%):", 100*dem2$pownocc)
 
 m <- leaflet() %>%
   addTiles(group = 'Open Street Map') %>%
@@ -97,20 +106,27 @@ m <- leaflet() %>%
   addSearchOSM(options = searchOptions(autoCollapse = TRUE, minLength = 2)) %>%
   addScaleBar('bottomleft') %>%
   addPolygons(data = dem2,
-              group = 'Demographic Info',
+              group = 'Median Household Income',
               fillColor = ~bpal(dem2$medhhinc),
               color = 'grey',
               weight = 1,
               fillOpacity = 0.5,
-              popup = paste("People of Color (%):", 100*dem2$propPOC, "<br>",
-                            "Black (%):", 100*dem2$pblack, "<br>",
-                            "Other race (%):", 100*dem2$pother, "<br>",
-                            "Latinx (%):", 100*dem2$platinx, "<br>",
-                            "White (%):", 100*dem2$pwhite, "<br>",
-                            "Estimated Median HH Income (US$):", round(dem2$medhhinc, 0), "<br>",
-                            "Housing Units (#):", dem2$hu, "<br>",
-                            "Owner-Occupied HU (%):", round(100*(dem2$ownocc/dem2$hu), 0))) %>%
-  addPolylines(data = buf, color = 'black', weight = 2,
+              popup = pops) %>%
+  addPolygons(data = dem2,
+              group = 'Owner Occupied Housing',
+              fillColor = ~bpal2(dem2$pownocc),
+              fillOpacity = 0.2,
+              color = 'grey',
+              weight = 1,
+              popup = pops) %>%
+  addPolygons(data = dem2,
+              group = 'Demographic Info',
+              color = 'grey',
+              weight = 1,
+              fillOpacity = 0,
+              highlightOptions = highlightOptions(color = "red", weight = 2,bringToFront = TRUE),
+              popup = pops) %>%
+  addPolylines(data = buf, color = 'black', weight = 1.5,
                label = buf$id, 
                labelOptions = labelOptions(noHide = T),
                group = 'Distance to Work') %>%
@@ -118,12 +134,19 @@ m <- leaflet() %>%
              group = 'Schools',
              label = scl$SCHOOL_NAM) %>%
   addLayersControl(baseGroups = c('Open Street Map'),
-                   overlayGroups = c('Distance to Work', 'Schools', 'Demographic Info'),
+                   overlayGroups = c('Distance to Work', 'Schools', 'Median Household Income', 'Owner Occupied Housing'),
                    options = layersControlOptions(collapsed = TRUE)) %>%
   addLegend('bottomright',
+            group = 'Median Household Income',
             pal = bpal,
             values = dem2$medhhinc,
-            title = 'Median HH Income')
+            title = 'Median HH Income') %>%
+  addLegend('bottomright',
+            group = 'Owner Occupied Housing',
+            pal = bpal2,
+            values = dem2$pownocc,
+            title = 'Owner Occupied Housing') %>%
+  hideGroup(group = 'Owner Occupied Housing')
 m
 
 ## export static map
