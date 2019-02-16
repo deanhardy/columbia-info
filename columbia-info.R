@@ -164,5 +164,5 @@ m
 ## export as interactive html map
 library(htmlwidgets)
 saveWidget(m,
-           file="/Users/dhardy/Dropbox/r_data/columbia-info/columbia.html",
+           file="/Users/dhardy/Dropbox/r_data/columbia-info/map.html",
            title = "Columbia, SC Information")
