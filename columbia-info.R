@@ -81,7 +81,7 @@ dem2 <- dem %>%
 ## import school locations
 scl <- st_read(file.path(datadir, "schools/schools.shp")) %>%
   st_transform(4326) %>%
-  filter(CITY %in% c('Columbia', 'West Columbia')) %>%
+  filter(CITY %in% c('Columbia', 'West Columbia'), SCHOOL_NAM != 'University of South Carolina') %>%
   st_cast('POINT')
 
 #############################################
@@ -90,7 +90,7 @@ scl <- st_read(file.path(datadir, "schools/schools.shp")) %>%
 
 factpal <- colorFactor(rainbow(8), buf$id)
 bpal <- colorBin('Reds', dem2$medhhinc, 5, pretty = FALSE)
-bpal2 <- colorBin('Blues', dem2$pownocc, 5, pretty = FALSE)
+bpal2 <- colorBin('Blues', 100*dem2$pownocc, 5, pretty = FALSE)
 pops <- paste("People of Color (%):", round(100*dem2$propPOC, 0), "<br>",
               "Black (%):", 100*dem2$pblack, "<br>",
               "Other race (%):", 100*dem2$pother, "<br>",
@@ -99,25 +99,31 @@ pops <- paste("People of Color (%):", round(100*dem2$propPOC, 0), "<br>",
               "Median HH Income (US$):", round(dem2$medhhinc, 0), "<br>",
               "Housing Units (#):", dem2$hu, "<br>",
               "Owner-Occupied HU (%):", 100*dem2$pownocc)
+icon.ion <- makeAwesomeIcon(icon = 'home', markerColor = 'green')
 
 m <- leaflet() %>%
   addTiles(group = 'Open Street Map') %>%
   setView(lng = loc$longitude, lat = loc$latitude, zoom = 13) %>%
   addSearchOSM(options = searchOptions(autoCollapse = TRUE, minLength = 2)) %>%
   addScaleBar('bottomleft') %>%
+  addAwesomeMarkers(data = loc, 
+                  label = 'EWS',
+                  icon = icon.ion) %>%
   addPolygons(data = dem2,
               group = 'Median Household Income',
               fillColor = ~bpal(dem2$medhhinc),
               color = 'grey',
               weight = 1,
               fillOpacity = 0.5,
+              highlightOptions = highlightOptions(color = "red", weight = 2,bringToFront = TRUE),
               popup = pops) %>%
   addPolygons(data = dem2,
               group = 'Owner Occupied Housing',
-              fillColor = ~bpal2(dem2$pownocc),
+              fillColor = ~bpal2(100*dem2$pownocc),
               fillOpacity = 0.2,
               color = 'grey',
               weight = 1,
+              highlightOptions = highlightOptions(color = "red", weight = 2,bringToFront = TRUE),
               popup = pops) %>%
   addPolygons(data = dem2,
               group = 'Demographic Info',
@@ -144,8 +150,11 @@ m <- leaflet() %>%
   addLegend('bottomright',
             group = 'Owner Occupied Housing',
             pal = bpal2,
-            values = dem2$pownocc,
-            title = 'Owner Occupied Housing') %>%
+            values = 100*dem2$pownocc,
+            title = 'Owner Occupied Housing (%)') %>%
+  # addLegend('bottomright',
+  #           group = 'Schools',
+  #           colors = 'black') %>%
   hideGroup(group = 'Owner Occupied Housing')
 m
 
