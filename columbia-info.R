@@ -48,6 +48,7 @@ buf <- st_set_geometry(df, 'geometry') %>%
 ## download demographic data for area
 #############################################
 library(tidycensus)
+# options(tigris_use_cache = TRUE)
 
 # all_vars <- load_variables(2016, 'acs5', cache = TRUE)
 var = c(white = "B03002_003E", black = "B03002_004E",
@@ -82,9 +83,9 @@ dem2 <- dem %>%
 scl <- st_read(file.path(datadir, "schools/schools.shp")) %>%
   st_transform(4326) %>%
   filter(CITY %in% c('Columbia', 'West Columbia'), SCHOOL_NAM != 'University of South Carolina') %>%
-  mutate(category = ifelse(str_detect(SCHOOL_NAM, 'Elementary'), 'elementary', 
-                           ifelse(str_detect(SCHOOL_NAM, 'Middle'), 'middle', 
-                                  ifelse(str_detect(SCHOOL_NAM, 'High'), 'high', 'other')))) %>%
+  mutate(category = ifelse(str_detect(SCHOOL_NAM, 'Elementary'), 'Elementary', 
+                           ifelse(str_detect(SCHOOL_NAM, 'Middle'), 'Middle', 
+                                  ifelse(str_detect(SCHOOL_NAM, 'High'), 'High', 'Other')))) %>%
   st_cast('POINT')
 
 #############################################
@@ -102,23 +103,51 @@ pops <- paste("People of Color (%):", round(100*dem2$propPOC, 0), "<br>",
               "Median HH Income (US$):", round(dem2$medhhinc, 0), "<br>",
               "Housing Units (#):", dem2$hu, "<br>",
               "Owner-Occupied HU (%):", 100*dem2$pownocc)
-icon.ion <- makeAwesomeIcon(icon = 'home', markerColor = 'purple')
+
+## make custom school icon set
+## with help from https://stackoverflow.com/questions/47064921/leaflet-legend-for-addawesomemarkers-function-with-icons
+## https://fontawesome.com/
+icon.ews <- makeAwesomeIcon(icon = 'university', markerColor = '#73000a', library = 'fa')
 
 IconSet <- awesomeIconList(
-  elementary = makeAwesomeIcon(icon= 'school', markerColor = 'green', library = "glyphicon"),
-  middle = makeAwesomeIcon(icon= 'school', markerColor = 'blue', iconColor = 'white', library = "glyphicon"),
-  high = makeAwesomeIcon(icon= 'school', markerColor = 'red', iconColor = 'white', library = "glyphicon"),
-  other = makeAwesomeIcon(icon= 'school', markerColor = 'gray', library = "glyphicon")
+  Elementary = makeAwesomeIcon(icon= 'bus', markerColor = 'green', library = "fa"),
+  Middle = makeAwesomeIcon(icon= 'bus', markerColor = 'blue', library = "fa"),
+  High = makeAwesomeIcon(icon= 'bus', markerColor = 'red', library = "fa"),
+  Other = makeAwesomeIcon(icon= 'bus', markerColor = 'gray', library = "fa")
 )
 
+## awesome marker legend
+## legend html generator:
+markerLegendHTML <- function(IconSet) {
+  # container div:
+  legendHtml <- "<div style='padding: 10px; padding-bottom: 10px;'><h4 style='padding-top:0; padding-bottom:10px; margin: 0;'>School Type</h4>"
+
+  n <- 1
+  # add each icon for font-awesome icons icons:
+  for (Icon in IconSet) {
+    if (Icon[["library"]] == "fa") {
+      legendHtml<- paste0(legendHtml, "<div style='width: auto; height: 45px'>",
+                          "<div style='position: relative; display: inline-block; width: 36px; height: 45px' class='awesome-marker-icon-",Icon[["markerColor"]]," awesome-marker'>",
+                          "<i style='margin-left: 4px; margin-top: 11px; 'class= 'fa fa-",Icon[["icon"]]," fa-inverse'></i>",
+                          "</div>",
+                          "<p style='position: relative; top: 10px; display: inline-block; ' >", names(IconSet)[n] ,"</p>",
+                          "</div>")
+    }
+    n<- n + 1
+  }
+  paste0(legendHtml, "</div>")
+}
+
+## map
 m <- leaflet() %>%
   addTiles(group = 'Open Street Map') %>%
   setView(lng = loc$longitude, lat = loc$latitude, zoom = 13) %>%
+  addTiles(attribution = '<a href="https://www.census.gov/programs-surveys/acs/"> | US Census American Community Survey 2013-2017</a>') %>%
   addSearchOSM(options = searchOptions(autoCollapse = TRUE, minLength = 2)) %>%
   addScaleBar('bottomleft') %>%
   addAwesomeMarkers(data = loc, 
                   label = 'EWS',
-                  icon = icon.ion) %>%
+                  icon = icon.ews) %>%
   addPolygons(data = dem2,
               group = 'Median Household Income',
               fillColor = ~bpal(dem2$medhhinc),
@@ -130,7 +159,7 @@ m <- leaflet() %>%
   addPolygons(data = dem2,
               group = 'Owner Occupied Housing',
               fillColor = ~bpal2(100*dem2$pownocc),
-              fillOpacity = 0.2,
+              fillOpacity = 0.5,
               color = 'grey',
               weight = 1,
               highlightOptions = highlightOptions(color = "red", weight = 2,bringToFront = TRUE),
@@ -151,7 +180,7 @@ m <- leaflet() %>%
                     icon = ~IconSet[category],
                     label = scl$SCHOOL_NAM) %>%
   addLayersControl(baseGroups = c('Open Street Map'),
-                   overlayGroups = c('Distance to EWS', 'Schools', 'Median Household Income', 'Owner Occupied Housing'),
+                   overlayGroups = c('Miles to EWS', 'Schools', 'Median Household Income', 'Owner Occupied Housing'),
                    options = layersControlOptions(collapsed = TRUE)) %>%
   addLegend('bottomright',
             group = 'Median Household Income',
@@ -163,9 +192,7 @@ m <- leaflet() %>%
             pal = bpal2,
             values = 100*dem2$pownocc,
             title = 'Owner Occupied Housing (%)') %>%
-  # addLegend('bottomright',
-  #           group = 'Schools',
-  #           colors = 'black') %>%
+  addControl(html = markerLegendHTML(IconSet = IconSet), position = "bottomleft") %>%
   hideGroup(group = 'Owner Occupied Housing')
 m
 
@@ -177,24 +204,3 @@ library(htmlwidgets)
 saveWidget(m,
            file="/Users/dhardy/Dropbox/r_data/columbia-info/map.html",
            title = "Columbia, SC Information")
-
-
-
-## experimenting
-
-IconSet <- awesomeIconList(
-  elementary = makeAwesomeIcon(icon= 'school', markerColor = 'green', library = "glyphicon"),
-  middle = makeAwesomeIcon(icon= 'school', markerColor = 'blue', iconColor = 'white', library = "glyphicon"),
-  high = makeAwesomeIcon(icon= 'school', markerColor = 'red', iconColor = 'white', library = "glyphicon"),
-  other = makeAwesomeIcon(icon= 'school', markerColor = 'green', library = "glyphicon")
-)
-
-leaflet() %>%
-  addTiles(group = 'Open Street Map') %>%
-  setView(lng = loc$longitude, lat = loc$latitude, zoom = 13) %>%
-  addSearchOSM(options = searchOptions(autoCollapse = TRUE, minLength = 2)) %>%
-  addScaleBar('bottomleft') %>%
-  addAwesomeMarkers(data = scl, 
-             group = 'Schools',
-             icon = ~IconSet[category],
-             label = scl$SCHOOL_NAM)
