@@ -9,7 +9,7 @@ library(mapview)
 ## define variables
 utm <- 2150 ## NAD83 17N
 alb <- "+proj=aea +lat_1=29.5 +lat_2=45.5 +lat_0=23 +lon_0=-84 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs" ## http://spatialreference.org/ref/sr-org/albers-conic-equal-area-for-florida-and-georgia/
-bd = seq(from = 0.5, to = 5, by =0.5) ## define buffer distances
+bd = seq(from = 0.5, to = 5, by =0.5) ## define euclidian buffer distances
 
 #define data directory
 datadir <- file.path('/Users/dhardy/Dropbox/r_data/columbia-info')
@@ -135,12 +135,12 @@ m <- leaflet() %>%
   addPolylines(data = buf, color = 'black', weight = 1.5,
                label = buf$id, 
                labelOptions = labelOptions(noHide = T),
-               group = 'Distance to Work') %>%
+               group = 'Distance to EWS') %>%
   addMarkers(data = scl, 
              group = 'Schools',
              label = scl$SCHOOL_NAM) %>%
   addLayersControl(baseGroups = c('Open Street Map'),
-                   overlayGroups = c('Distance to Work', 'Schools', 'Median Household Income', 'Owner Occupied Housing'),
+                   overlayGroups = c('Distance to EWS', 'Schools', 'Median Household Income', 'Owner Occupied Housing'),
                    options = layersControlOptions(collapsed = TRUE)) %>%
   addLegend('bottomright',
             group = 'Median Household Income',
