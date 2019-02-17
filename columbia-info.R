@@ -82,6 +82,9 @@ dem2 <- dem %>%
 scl <- st_read(file.path(datadir, "schools/schools.shp")) %>%
   st_transform(4326) %>%
   filter(CITY %in% c('Columbia', 'West Columbia'), SCHOOL_NAM != 'University of South Carolina') %>%
+  mutate(category = ifelse(str_detect(SCHOOL_NAM, 'Elementary'), 'elementary', 
+                           ifelse(str_detect(SCHOOL_NAM, 'Middle'), 'middle', 
+                                  ifelse(str_detect(SCHOOL_NAM, 'High'), 'high', 'other')))) %>%
   st_cast('POINT')
 
 #############################################
@@ -99,7 +102,14 @@ pops <- paste("People of Color (%):", round(100*dem2$propPOC, 0), "<br>",
               "Median HH Income (US$):", round(dem2$medhhinc, 0), "<br>",
               "Housing Units (#):", dem2$hu, "<br>",
               "Owner-Occupied HU (%):", 100*dem2$pownocc)
-icon.ion <- makeAwesomeIcon(icon = 'home', markerColor = 'green')
+icon.ion <- makeAwesomeIcon(icon = 'home', markerColor = 'purple')
+
+IconSet <- awesomeIconList(
+  elementary = makeAwesomeIcon(icon= 'school', markerColor = 'green', library = "glyphicon"),
+  middle = makeAwesomeIcon(icon= 'school', markerColor = 'blue', iconColor = 'white', library = "glyphicon"),
+  high = makeAwesomeIcon(icon= 'school', markerColor = 'red', iconColor = 'white', library = "glyphicon"),
+  other = makeAwesomeIcon(icon= 'school', markerColor = 'gray', library = "glyphicon")
+)
 
 m <- leaflet() %>%
   addTiles(group = 'Open Street Map') %>%
@@ -136,9 +146,10 @@ m <- leaflet() %>%
                label = buf$id, 
                labelOptions = labelOptions(noHide = T),
                group = 'Distance to EWS') %>%
-  addMarkers(data = scl, 
-             group = 'Schools',
-             label = scl$SCHOOL_NAM) %>%
+  addAwesomeMarkers(data = scl, 
+                    group = 'Schools',
+                    icon = ~IconSet[category],
+                    label = scl$SCHOOL_NAM) %>%
   addLayersControl(baseGroups = c('Open Street Map'),
                    overlayGroups = c('Distance to EWS', 'Schools', 'Median Household Income', 'Owner Occupied Housing'),
                    options = layersControlOptions(collapsed = TRUE)) %>%
@@ -166,3 +177,24 @@ library(htmlwidgets)
 saveWidget(m,
            file="/Users/dhardy/Dropbox/r_data/columbia-info/map.html",
            title = "Columbia, SC Information")
+
+
+
+## experimenting
+
+IconSet <- awesomeIconList(
+  elementary = makeAwesomeIcon(icon= 'school', markerColor = 'green', library = "glyphicon"),
+  middle = makeAwesomeIcon(icon= 'school', markerColor = 'blue', iconColor = 'white', library = "glyphicon"),
+  high = makeAwesomeIcon(icon= 'school', markerColor = 'red', iconColor = 'white', library = "glyphicon"),
+  other = makeAwesomeIcon(icon= 'school', markerColor = 'green', library = "glyphicon")
+)
+
+leaflet() %>%
+  addTiles(group = 'Open Street Map') %>%
+  setView(lng = loc$longitude, lat = loc$latitude, zoom = 13) %>%
+  addSearchOSM(options = searchOptions(autoCollapse = TRUE, minLength = 2)) %>%
+  addScaleBar('bottomleft') %>%
+  addAwesomeMarkers(data = scl, 
+             group = 'Schools',
+             icon = ~IconSet[category],
+             label = scl$SCHOOL_NAM)
