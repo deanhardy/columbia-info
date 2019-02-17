@@ -174,7 +174,7 @@ m <- leaflet() %>%
   addPolylines(data = buf, color = 'black', weight = 1.5,
                label = buf$id, 
                labelOptions = labelOptions(noHide = T),
-               group = 'Distance to EWS') %>%
+               group = 'Miles to EWS') %>%
   addAwesomeMarkers(data = scl, 
                     group = 'Schools',
                     icon = ~IconSet[category],
