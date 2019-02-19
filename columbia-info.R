@@ -5,6 +5,9 @@ library(sf)
 library(leaflet)
 library(leaflet.extras)
 library(mapview)
+library(tigris)
+library(leaflet)
+library(readxl)
 
 ## define variables
 utm <- 2150 ## NAD83 17N
@@ -14,7 +17,15 @@ bd = seq(from = 0.5, to = 5, by =0.5) ## define euclidian buffer distances
 #define data directory
 datadir <- file.path('/Users/dhardy/Dropbox/r_data/columbia-info')
 
-
+# schools <- school_districts("SC", 'elementary')
+# schools <- st_read(file.path(datadir, 'school-districts/school_districts')) %>%
+#   st_transform(4326)
+  
+# leaflet(schools) %>%
+#   addProviderTiles("CartoDB.Positron") %>%
+#   addPolygons(fillColor = "white",
+#               color = "black",
+#               weight = 0.5)
 
 #############################################
 ## generate 0.5 mi buffer rings out from EWS
@@ -86,7 +97,14 @@ scl <- st_read(file.path(datadir, "schools/schools.shp")) %>%
   mutate(category = ifelse(str_detect(SCHOOL_NAM, 'Elementary'), 'Elementary', 
                            ifelse(str_detect(SCHOOL_NAM, 'Middle'), 'Middle', 
                                   ifelse(str_detect(SCHOOL_NAM, 'High'), 'High', 'Other')))) %>%
-  st_cast('POINT')
+  st_cast('POINT') %>%
+  rename(SCHOOLID = ID)
+
+## import school report cards
+## data from https://screportcards.com/
+rc <- read_excel(file.path(datadir, 'schools/report-cards-2018.xlsx'), sheet= 1, skip = 2)
+
+scl2 <- left_join(scl, rc, by = 'SCHOOLID')
 
 #############################################
 ## create maps
@@ -175,10 +193,13 @@ m <- leaflet() %>%
                label = buf$id, 
                labelOptions = labelOptions(noHide = T),
                group = 'Miles to EWS') %>%
-  addAwesomeMarkers(data = scl, 
+  addAwesomeMarkers(data = scl2, 
                     group = 'Schools',
                     icon = ~IconSet[category],
-                    label = scl$SCHOOL_NAM) %>%
+                    popup = paste("Name:", scl2$SCHOOL_NAM, "<br>",
+                                  "Teacher/Student Ratio:", scl2$TEACH_STUD, "<br>",
+                                  "Grades:", scl2$GRADES, "<br>",
+                                  "Overall Rating:", scl2$RATE_OVERALL)) %>%
   addLayersControl(baseGroups = c('Open Street Map'),
                    overlayGroups = c('Miles to EWS', 'Schools', 'Median Household Income', 'Owner Occupied Housing'),
                    options = layersControlOptions(collapsed = TRUE)) %>%
